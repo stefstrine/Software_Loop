@@ -1,6 +1,6 @@
 # /checkpoint - Phase Completion Verification
 
-Run verification for a completed phase and update PROGRESS.md with a verification matrix.
+Verify phase completion with deterministic confidence scoring.
 
 ## Usage
 
@@ -11,37 +11,105 @@ Run verification for a completed phase and update PROGRESS.md with a verificatio
 
 ## Instructions
 
-When the user runs `/checkpoint`, perform a full phase verification.
+**IMPORTANT: This command uses the CLI for deterministic verification.**
 
-**Steps:**
+When the user runs `/checkpoint`, execute the Software Loop CLI to get verification data, then format it.
 
-1. **Read PRP.md** - Get all tasks for the current/specified phase
-2. **Read git log** - Get commits since phase started
-3. **Build verification matrix** - Match tasks to commits
-4. **Run build** - Execute build command to verify code compiles
-5. **Update PROGRESS.md** - Append session log with verification matrix
-6. **Commit checkpoint** - Create a checkpoint commit if all tasks pass
+### Step 1: Run CLI Command
 
-**Verification Matrix Format:**
+```bash
+sloop checkpoint --json
+```
+
+Or for a specific phase:
+```bash
+sloop checkpoint --phase 1 --json
+```
+
+Or if `sloop` is not in PATH:
+```bash
+npx software-loop checkpoint --json
+# OR
+node dist/cli.js checkpoint --json
+```
+
+### Step 2: Parse JSON Output
+
+The CLI returns structured verification data:
+```json
+{
+  "success": true,
+  "data": {
+    "timestamp": "2026-01-18T...",
+    "phase": { "id": 1, "name": "Foundation", "status": "active" },
+    "verificationMatrix": [
+      {
+        "taskId": "1.1",
+        "description": "Implement init command",
+        "commitHash": "abc1234",
+        "status": "complete",
+        "confidence": 90,
+        "reason": "Task complete with commit"
+      },
+      {
+        "taskId": "1.2",
+        "description": "Implement status command",
+        "commitHash": null,
+        "status": "not_started",
+        "confidence": 0,
+        "reason": "Not started"
+      }
+    ],
+    "buildStatus": {
+      "attempted": true,
+      "passed": true,
+      "command": "npm run build"
+    },
+    "overallConfidence": 45,
+    "passed": false,
+    "summary": "Phase 1 has 2 incomplete tasks"
+  }
+}
+```
+
+### Step 3: Format for Human Display
 
 ```markdown
-## Session Log: [Date]
+### Checkpoint: Phase [phase.id] - [phase.name]
 
-**Agent:** [Current model]
-**Phase Attempted:** Phase N ([Name])
+**Verification Matrix**
+| Task | Status | Confidence | Commit |
+| :--- | :----- | :--------- | :----- |
+[for each entry in verificationMatrix]
+| [taskId] | [status emoji] [status] | [confidence]% | [commitHash or "-"] |
 
-### Verification Matrix
+**Build Status**
+[buildStatus.command]: [passed ? "✅ Passed" : "❌ Failed"]
 
-| PRP Task ID | Git Commit Hash | Status | Confidence Score |
-| :--- | :--- | :--- | :--- |
-| Task N.1 | a1b2c3d | ✅ Complete | 100% (Tests passed) |
-| Task N.2 | e5f6g7h | ⚠️ Partial | 60% (Reason) |
-| Task N.3 | - | ❌ Not Started | 0% |
-
-### Build Verification
-- Build: ✅ Passed / ❌ Failed
-- Tests: ✅ Passed / ❌ Failed
-
-### Context Handoff Note
-*To the next Agent: [Summary of what was done, what issues remain, what to do next]*
+**Summary**
+Overall Confidence: [overallConfidence]%
+[passed ? "✅" : "⚠️"] [summary]
 ```
+
+### Confidence Scoring Rules (Deterministic)
+
+The CLI uses these rules to compute confidence:
+- Task complete + has commit + tests pass: **100%**
+- Task complete + has commit, no tests: **90%**
+- Task marked complete, no commit found: **70%**
+- Task partial (WIP commit exists): **50%**
+- Task not started: **0%**
+
+### After Checkpoint
+
+The CLI automatically appends results to PROGRESS.md. Inform the user:
+- If passed: "Checkpoint passed. Ready for next phase or PR."
+- If failed: List incomplete tasks and suggest next steps.
+
+### If CLI Not Available
+
+Fall back to manual verification:
+1. Read PRP.md for current phase tasks
+2. Run `git log --oneline -10` for recent commits
+3. Try `npm run build` (or equivalent) for build check
+4. Compute confidence manually using the rules above

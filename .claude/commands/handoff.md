@@ -1,45 +1,116 @@
 # /handoff - Session Context Handoff
 
-Generate a context handoff note for the next agent/session using the PRP Section 7 protocol.
+Generate session handoff note for the next agent.
 
 ## Usage
 
 ```
-/handoff              # Generate handoff note
-/handoff "notes"      # Include specific notes in handoff
+/handoff              # Generate handoff (interactive)
+/handoff "notes"      # Include specific notes
 ```
 
 ## Instructions
 
-When the user runs `/handoff`, create a handoff note following PRP Section 7 (Handoff Protocol).
+**IMPORTANT: This command uses the CLI for deterministic data gathering.**
 
-**Steps:**
+When the user runs `/handoff`, execute the Software Loop CLI to get handoff data, then help format it.
 
-1. **Read PRP.md Section 0** - Get current status and phase
-2. **Read PRP.md Section 5** - Get active phase tasks
-3. **Read PROGRESS.md** - Get latest session context
-4. **Read git status** - Check for uncommitted changes
-5. **Read git log -5** - Get recent commits
-6. **Generate handoff note** - Use Section 7 template
-7. **Append to PROGRESS.md** - Save as session log entry
+### Step 1: Run CLI Command
 
-**Handoff Note Format (from PRP Section 7):**
+```bash
+sloop handoff --json
+```
+
+Or with notes:
+```bash
+sloop handoff --json --message "Need to fix the parser bug"
+```
+
+Or if `sloop` is not in PATH:
+```bash
+npx software-loop handoff --json
+# OR
+node dist/cli.js handoff --json
+```
+
+### Step 2: Parse JSON Output
+
+The CLI returns structured handoff data:
+```json
+{
+  "success": true,
+  "data": {
+    "timestamp": "2026-01-18T10:30:00Z",
+    "branch": "feature/auto-context",
+    "currentPhase": { "id": 1, "name": "Foundation", "status": "active" },
+    "recentCommits": [
+      { "hash": "abc1234", "message": "feat: add init command" },
+      { "hash": "def5678", "message": "feat: add status command" }
+    ],
+    "uncommittedChanges": ["M src/cli.ts", "?? src/lib/parser.ts"],
+    "completedThisSession": [...],
+    "nextTasks": [
+      { "id": "1.5", "description": "Build and test CLI", "completed": false, "phase": 1 },
+      { "id": "1.6", "description": "Test sloop init", "completed": false, "phase": 1 }
+    ],
+    "risks": ["Parser may have edge cases"]
+  }
+}
+```
+
+### Step 3: Format Handoff Note
+
+Generate a human-readable handoff:
 
 ```markdown
-## Session Handoff: [Date]
+## Session Handoff: [timestamp date]
 
-**Current Phase:** Phase N (Name)
-**Agent:** [Model name]
+**Current Phase:** Phase [currentPhase.id] - [currentPhase.name]
+**Agent:** [Ask user or use "Claude Opus 4.5"]
+**Branch:** [branch]
 
 ### What was changed
-- [Bullet list of changes]
+[AI should help user list their changes based on recentCommits]
+
+### Recent Commits
+[for each commit in recentCommits]
+- [hash]: [message]
 
 ### What's next
-- [Bullet list of next tasks]
+[for each task in nextTasks]
+- [task.id]: [task.description]
 
 ### Known risks
-- [Any blockers or concerns]
+[for each risk in risks]
+- [risk]
+[OR if uncommittedChanges]
+- ⚠️ Uncommitted changes: [list files]
 
 ### Questions for next agent
-- [Clarifying questions if any]
+- [Ask user if they have any]
 ```
+
+### Step 4: AI Assistance
+
+After getting CLI data, help the user by:
+1. Summarizing what commits suggest was done
+2. Highlighting uncommitted changes that need attention
+3. Asking if they want to add any context the CLI didn't capture
+
+### After Handoff
+
+The CLI automatically appends the handoff to PROGRESS.md when run interactively.
+
+If user ran with `--json`, you should:
+1. Format the data as shown above
+2. Offer to append it to PROGRESS.md
+
+### If CLI Not Available
+
+Fall back to manual handoff:
+1. Read PRP.md Section 0 for current status
+2. Read PRP.md Section 5 for pending tasks
+3. Run `git status` for uncommitted changes
+4. Run `git log --oneline -5` for recent commits
+5. Read PROGRESS.md for previous session context
+6. Generate handoff note using Section 7 template

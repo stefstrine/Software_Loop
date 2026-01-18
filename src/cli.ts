@@ -36,6 +36,7 @@ program
   .option("-p, --phase", "Show current phase details only")
   .option("-t, --tasks", "Show pending tasks only")
   .option("--tiers", "Show architecture tiers status")
+  .option("-j, --json", "Output as JSON (for slash command integration)")
   .action(statusCommand);
 
 // Run checkpoint verification (like /checkpoint)
@@ -44,6 +45,7 @@ program
   .description("Verify phase completion and update progress")
   .option("-p, --phase <phase>", "Verify specific phase")
   .option("--no-commit", "Skip creating checkpoint commit")
+  .option("-j, --json", "Output as JSON (for slash command integration)")
   .action(checkpointCommand);
 
 // Generate handoff note (like /handoff)
@@ -51,6 +53,7 @@ program
   .command("handoff")
   .description("Generate session handoff note for next agent")
   .option("-m, --message <message>", "Additional notes to include")
+  .option("-j, --json", "Output as JSON (for slash command integration)")
   .action(handoffCommand);
 
 // Parse and execute

@@ -24,7 +24,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
   console.log(chalk.bold("\n🔄 Software Loop - Project Initialization\n"));
 
   // Get project name
-  let projectName = options.name;
+  let projectName: string = options.name || "";
   if (!projectName) {
     const answers = await inquirer.prompt([
       {
@@ -41,7 +41,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
         },
       },
     ]);
-    projectName = answers.projectName;
+    projectName = answers.projectName as string;
   }
 
   const projectPath = join(process.cwd(), projectName);
